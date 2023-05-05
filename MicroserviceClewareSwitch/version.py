@@ -18,5 +18,5 @@
 #
 # Version and date of MicroserviceClewareSwitch
 #
-VERSION      = "0.1.1"
+VERSION      = "0.1.2"
 VERSION_DATE = "02.02.2023"
