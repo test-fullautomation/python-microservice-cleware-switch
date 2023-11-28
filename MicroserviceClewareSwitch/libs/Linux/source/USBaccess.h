@@ -1,7 +1,20 @@
 // DLL class definitions for access to USB HID devices
 //
-// (C) 2001-2014 Copyright Cleware GmbH
-// All rights reserved
+/* Copyright (C) 2001-2022 Copyright Cleware GmbH, wilfried Söker
+ 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 //
 // History:
 // 05.01.2001	ws	Initial coding
@@ -22,6 +35,15 @@
 // 02.09.2014	ws	4.3.3	fixed an old error when switching channel 8 of a Contact device using SetSwitch
 // 05.07.2017	ws	4.5.5	Added support for KnoxBox V12, fixed small multiread bug
 // 28.02.2018	ws	5.1.0	use USBaccessDevTypes.h,  added new Counter device to measure frequency
+// 25.08.2021	ws	5.1.1	Cutter, Connect and Multi2 now detected correect
+// 06.10.2021	ws	6.0.0	add internal object to avoid global var
+// 04.11.2022	ws	6.4.2	Linux signbit problem fix in SetSwitch calling MultiSwitch
+// 28.02.2023 ws	6.4.3	Fix for USB-Ampel4  
+// 01.03.2023 ws	6.4.4 Fix new Humi interface, shows Error at higher temperature  
+// 15.03.2023 ws	6.6.0 Add PT100 GetTemperature support  
+// 27.03.2023 ws	6.6.1 Fix new USBcounter SetCounter interface 
+// 29.06.2023 ws	6.6.2 Implement GetMultiConfig()
+// 02.08.2023 ws	6.6.3 Fixed ResetDevice() error, Added timer infos for Contact device  (Timed Buttons)
 
 
 
@@ -36,6 +58,11 @@
 #ifndef __USBACCESS_H__
 #define __USBACCESS_H__
 
+extern "C" {
+#	include "USBaccessBasic.h"
+} ;
+
+
 typedef int HANDLE ;
 
 #ifdef USBACCESS_EXPORTS
@@ -44,11 +71,11 @@ typedef int HANDLE ;
 #define USBACCESS_API __declspec(dllimport)
 #endif
 
-const int USBaccessVersion = 510 ;
+const int USBaccessVersion = 663 ;
 
 class CUSBaccess {
 	public:
-		enum USBactions {		LEDs=0, EEwrite=1, EEread=2, Reset=3, KeepCalm=4, GetInfo=5, 
+		enum USBactions {	LEDs=0, EEwrite=1, EEread=2, Reset=3, KeepCalm=4, GetInfo=5, 
 								StartMeasuring=6,		// USB-Humidity
 								Configure=7,			// USB-IO16-V10, USB-Counter-V05
 								RunPoint=10,			// USB-Encoder
@@ -67,6 +94,8 @@ class CUSBaccess {
 		enum USBtype_enum {	
 #include "USBaccessDevTypes.h"	
 		} ;
+	private:
+		cwSUSBdata *cwBasicObj ;			// USBaccessBasic 
 	public:
 		CUSBaccess() ;
 		virtual ~CUSBaccess() ;		// maybe used as base class
@@ -100,6 +129,7 @@ class CUSBaccess {
 		virtual int			GetOnlineOnTime(int deviceNo) ;			// returns how long (seconds) switch is turned on by USB command
 		virtual int			GetMultiSwitch(int deviceNo, unsigned long int *mask, unsigned long int *value, int seqNumber) ;
 		virtual int			SetMultiSwitch(int deviceNo, unsigned long int value) ;
+		virtual int			GetMultiConfig(int deviceNo) ; // -1=error	 otherwise bits 0 - 15 	1=input, 0=output
 		virtual int			SetMultiConfig(int deviceNo, unsigned long int directions) ;
 		virtual int			GetCounter(int deviceNo, enum COUNTER_IDs counterID) ;	// COUNTER_IDs ununsed until now
 		virtual int			SetCounter(int deviceNo, int counter, enum COUNTER_IDs counterID) ;	//  -1=error, COUNTER_IDs ununsed until now

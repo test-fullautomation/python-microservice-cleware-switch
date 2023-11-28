@@ -146,7 +146,15 @@ class ClewareAccessHelperLinux(ClewareAccessHelperAbs):
       self._library.FCWIOX.restype = c_int
       res = self._library.FCWIOX(self._usb_obj, device_no, addr, data)
       return res
-
+   
+   def get_all_sw_state(self, device_no):
+      self._library.FCWGetAllSwitchState.argtypes = [POINTER(c_int), c_int]
+      self._library.FCWGetAllSwitchState.restype = POINTER(c_int)
+      array_ptr = self._library.FCWGetAllSwitchState(self._usb_obj, device_no)
+      array = [array_ptr[i] for i in range(8)] 
+      result_dict = {str(i): array[i] for i in range(8)}
+      self._library.free(array_ptr)
+      return result_dict
 
 if __name__ == '__main__':
    try:

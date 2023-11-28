@@ -1,7 +1,20 @@
 // Basic class implementation for access to USB HID devices
 //
-// (C) 2001 Copyright Cleware GmbH
-// All rights reserved
+/* Copyright (C) 2001-2022 Copyright Cleware GmbH, Wilfried Söker
+ 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 //
 // History:
 // 05.01.01	ws	Initial coding
@@ -10,6 +23,8 @@
 // 25.05.13 ws	new controller support
 // 15.05.14 ws	new controller needs special serial number handling
 // 12.10.18 ws	fixed bug in device detection
+// 06.10.21 ws	add internal object to avoid global var
+// 28.02.23 ws	Fix for USB-Ampel4  
 
 
 #define HID_MAX_USAGES 1024		// see /usr/src/linux/drivers/usb/input/hid.h
@@ -27,37 +42,46 @@
 #include "USBaccessBasic.h"
 
 const int maxHID = 128 ;
-cwSUSBdata data[128] ;
 
-void
+cwSUSBdata *
 cwInitCleware() {
 	int h ;
+	cwSUSBdata *data ; 	// [128] ;
 
+	data = (cwSUSBdata *)malloc(sizeof(cwSUSBdata) * maxHID) ;
 	for (h=0 ; h < maxHID ; h++)
 		data[h].handle = INVALID_HANDLE_VALUE ;
+	return (void *) data ;
 	}
 
 void
-cwCloseCleware() {
+cwCloseCleware(cwSUSBdata *data) {
 	int h ;
-	for (h=0 ; h < maxHID  ; h++) {
-		if (data[h].handle != INVALID_HANDLE_VALUE) {
-			close(data[h].handle) ;
-			data[h].handle = INVALID_HANDLE_VALUE ;
+	if (data != 0) {
+		for (h=0 ; h < maxHID  ; h++) {
+			if (data[h].handle != INVALID_HANDLE_VALUE) {
+				close(data[h].handle) ;
+				data[h].handle = INVALID_HANDLE_VALUE ;
+				}
 			}
+		free(data) ;
+		data = 0 ;
 		}
 	}
 
 
 // returns number of found Cleware devices
 int
-cwOpenCleware() {
+cwOpenCleware(cwSUSBdata *data) {
 	int ok = 1 ;	
 	int i, h ;
 	int handleCount = 0 ;
 	char *hiddevname[] = { "/dev/usb/hiddev", "/dev/bus/usb/hiddev" } ;
 	int hId ;
 
+	if (data == 0)
+		return 0 ;
+	
 	for (h=0 ; h < handleCount ; h++) {
 		if (data[h].handle != INVALID_HANDLE_VALUE) {
 			close(data[h].handle) ;
@@ -123,11 +147,11 @@ cwOpenCleware() {
 							SerNum = 0 ;
 							int addr ;
 							for (addr=8 ; addr <= 14 ; addr++) {	// unicode byte 2 == 0
-								int data = cwIOX(handleCount, addr, -1) ;
-								if (data >= '0' && data <= '9')
-									SerNum = SerNum * 16 + data - '0' ;
-								else if (data >= 'A' && data <= 'F')
-									SerNum = SerNum * 16 + data - 'A' + 10 ;
+								int db = cwIOX(data, handleCount, addr, -1) ;
+								if (db >= '0' && db <= '9')
+									SerNum = SerNum * 16 + db - '0' ;
+								else if (db >= 'A' && db <= 'F')
+									SerNum = SerNum * 16 + db - 'A' + 10 ;
 								else {
 									SerNum = -1 ;		// failed!
 									break ;
@@ -136,14 +160,79 @@ cwOpenCleware() {
 							}
 					data[handleCount].SerialNumber = SerNum ;
 					if (data[handleCount].gadgettype == SWITCH1_DEVICE && data[handleCount].HWversion == 13) {
-						int d2 = cwIOX(handleCount, 2, -1) ;
+						int d2 = cwIOX(data, handleCount, 2, -1) ;
 						if (d2 & 0x20)
 							data[handleCount].isAmpel = 1 ; 
-						d2 &= 0x0f ;
-						if (d2 == 0)
-							data[handleCount].gadgettype = WATCHDOG_DEVICE ;
-						else if (d2 == 1)
-							data[handleCount].gadgettype = AUTORESET_DEVICE ;
+						if (data[handleCount].HWversion != 0 &&
+							!(data[handleCount].gadgetVersionNo >= 0x100 && data[handleCount].gadgetVersionNo < 0x180)	// no Cutter/Multi2
+							) {
+							switch (d2 & 0x0f) {
+								case 0:
+//								case 7:
+									data[handleCount].gadgettype = WATCHDOG_DEVICE ;
+									break ;
+								case 1:
+									data[handleCount].gadgettype = AUTORESET_DEVICE ;
+									break ;
+								}
+							}
+						}
+					else if (data[handleCount].gadgettype ==  CONTACT00_DEVICE) {
+						if (data[handleCount].SerialNumber > 905000 && data[handleCount].SerialNumber < 1000000) {
+							int d3 = cwIOX(data, handleCount, 5, -1) ;
+							d3 = cwIOX(data, handleCount, 5, -1) ;	// read always 2 times
+							if ((d3 & 0x08) != 0)
+								data[handleCount].isAmpel = 4 ;
+							else
+								data[handleCount].isAmpel = 12 ;
+							}
+						}
+					else if (data[handleCount].gadgettype ==  ADC0800_DEVICE) {
+						data[handleCount].ADCtype = cwIOX(data, handleCount, 2, -1) ;	
+						
+						// Start
+						double fval = 1. ;
+						if (data[handleCount].gadgetVersionNo >= 10) {
+							const int baLength = 5 ;
+							unsigned char fa[baLength] ;
+							int subDevice = data[handleCount].gadgettype - ADC0800_DEVICE ;
+							ok = 1 ;
+							if (data[handleCount].gadgetVersionNo >= 0x14) {
+								for (int i=0 ; i <= 4 ; i++)
+									fa[i] = cwIOX(data, handleCount, 21+i, -1) ;
+								}
+							else if (data[handleCount].gadgetVersionNo >= 0x11 && data[handleCount].gadgetVersionNo < 0x14 && subDevice == 0) {
+								fa[0] = cwIOX(data, handleCount, 7, -1) ;
+								for (int i=1 ; i <= 4 ; i++)
+									fa[i] = cwIOX(data, handleCount, 19+i, -1) ;
+								}
+							else 
+								ok = 0 ;
+							if (ok)
+								ok = cwDecodeBCD(fa, baLength, &fval) ;
+							if (fval <= 0.)
+								fval = 1. ;
+
+							data[handleCount].ADC_factor = fval ;
+
+							fval = 0. ;
+							ok = 1 ;
+							if (data[handleCount].gadgetVersionNo >= 0x14) {
+								for (int i=0 ; i <= 4 ; i++)
+									fa[i] = cwIOX(data, handleCount, 16+i, -1) ;
+								}
+							else if (data[handleCount].gadgetVersionNo >= 0x11 && data[handleCount].gadgetVersionNo < 0x14 && subDevice == 0) {
+								fa[0] = cwIOX(data, handleCount, 6, -1) ;
+								for (int i=1 ; i <= 4 ; i++)
+									fa[i] = cwIOX(data, handleCount, 15+i, -1) ;
+								}
+							else 
+								ok = 0 ;
+							if (ok)
+								ok = cwDecodeBCD(fa, baLength, &fval) ;
+							data[handleCount].ADC_delta = fval ;
+							}
+						// end
 						}
 					}
 				}					
@@ -163,7 +252,7 @@ cwOpenCleware() {
 
 // try to find disconnected devices - returns true if succeeded
 int
-cwRecover(int devNum) {
+cwRecover(cwSUSBdata *data, int devNum) {
 	int ok = 1 ;	
 	int i, h ;
 	int reconnectOk = 0 ;
@@ -225,11 +314,11 @@ cwRecover(int devNum) {
 						SerNum = 0 ;
 						int addr ;
 						for (addr=8 ; addr <= 14 ; addr++) {	// unicode byte 2 == 0
-							int data = cwIOX(devNum, addr, -1) ;
-							if (data >= '0' && data <= '9')
-								SerNum = SerNum * 16 + data - '0' ;
-							else if (data >= 'A' && data <= 'F')
-								SerNum = SerNum * 16 + data - 'A' + 10 ;
+							int db = cwIOX(data, devNum, addr, -1) ;
+							if (db >= '0' && db <= '9')
+								SerNum = SerNum * 16 + db - '0' ;
+							else if (db >= 'A' && db <= 'F')
+								SerNum = SerNum * 16 + db - 'A' + 10 ;
 							else {
 								SerNum = -1 ;		// failed!
 								break ;
@@ -257,7 +346,7 @@ cwRecover(int devNum) {
 
 // returns 1 if ok or 0 in case of an error
 int		
-cwGetValue(int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsize) {
+cwGetValue(cwSUSBdata *data, int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsize) {
 	// UsagePage and Usage needed for win32
 	struct hiddev_field_info finfo ;
 	struct hiddev_usage_ref uref ;
@@ -323,7 +412,7 @@ cwGetValue(int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsi
 
 
 int 
-cwSetValue(int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsize) {
+cwSetValue(cwSUSBdata *data, int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsize) {
 	// UsagePage and Usage needed for win32
 	struct hiddev_report_info rinfo ;
 	struct hiddev_field_info finfo ;
@@ -371,7 +460,7 @@ cwSetValue(int deviceNo, int UsagePage, int Usage, unsigned char *buf, int bufsi
 	}
 
 unsigned long int
-cwGetHandle(int deviceNo) { 
+cwGetHandle(cwSUSBdata *data, int deviceNo) { 
 	unsigned long int rval = INVALID_HANDLE_VALUE ;
 
 	if (deviceNo >= 0 && deviceNo < maxHID)
@@ -381,7 +470,7 @@ cwGetHandle(int deviceNo) {
 	}
 
 int
-cwGetVersion(int deviceNo) { 
+cwGetVersion(cwSUSBdata *data, int deviceNo) { 
 	int rval ;
 
 	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
@@ -393,7 +482,7 @@ cwGetVersion(int deviceNo) {
 	}
 
 int
-cwGetSerialNumber(int deviceNo) { 
+cwGetSerialNumber(cwSUSBdata *data, int deviceNo) { 
 	int rval ;
 
 	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
@@ -405,7 +494,7 @@ cwGetSerialNumber(int deviceNo) {
 	}
 
 enum USBtype_enum
-cwGetUSBType(int deviceNo) { 
+cwGetUSBType(cwSUSBdata *data, int deviceNo) { 
 	enum USBtype_enum rval ;
 
 	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
@@ -417,7 +506,7 @@ cwGetUSBType(int deviceNo) {
 	}
 
 int	
-cwGetHWversion(int deviceNo) {			// return current
+cwGetHWversion(cwSUSBdata *data, int deviceNo) {			// return current
 	int rval = 0 ;
 
 	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
@@ -429,13 +518,49 @@ cwGetHWversion(int deviceNo) {			// return current
 	}
 
 int	
-cwIsAmpel(int deviceNo) {
+cwIsAmpel(cwSUSBdata *data, int deviceNo) {
 	int rval = 0 ;
 
 	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
 		rval = -1 ;
 	else
 		rval = data[deviceNo].isAmpel ;
+
+	return rval ; 
+	}
+
+int	
+cwGetADCtype(cwSUSBdata *data, int deviceNo) {
+	int rval = 0 ;
+
+	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
+		rval = -1 ;
+	else
+		rval = data[deviceNo].ADCtype ;
+
+	return rval ; 
+	}
+	
+double					
+cwGet_ADC_factor(cwSUSBdata *data, int deviceNo) {
+	double rval = 1. ;
+
+	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
+		rval = 1. ;
+	else
+		rval = data[deviceNo].ADC_factor ;
+
+	return rval ; 
+	}
+	
+double					
+cwGet_ADC_delta(cwSUSBdata *data, int deviceNo) {
+	double rval = 0. ;
+
+	if (deviceNo < 0 || deviceNo >= maxHID || data[deviceNo].handle == INVALID_HANDLE_VALUE)
+		rval = 0. ;
+	else
+		rval = data[deviceNo].ADC_delta ;
 
 	return rval ; 
 	}
@@ -506,7 +631,7 @@ cwDebugClose() {
 	}
 
 int	
-cwIOX(int deviceNo, int addr, int datum) {	// return datum if ok, datum=-1=Read operation
+cwIOX(cwSUSBdata *data, int deviceNo, int addr, int datum) {	// return datum if ok, datum=-1=Read operation
 	const int maxbufsize = 8 ;
 	int bufsize = 6 ;
 	unsigned char buf[maxbufsize] ;
@@ -525,52 +650,52 @@ cwIOX(int deviceNo, int addr, int datum) {	// return datum if ok, datum=-1=Read 
 			buf[1] = addr >> 8 ;	// high byte 0
 			buf[2] = addr ;
 			buf[3] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 4) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 4) ;
 			}
 		else if (devType == CONTACT00_DEVICE && version > 6) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 			}
 		else if (devType == DISPLAY_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 			}
 		else if (devType == WATCHDOGXP_DEVICE || devType == SWITCHX_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 			}
 		else if (devType == ENCODER01_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 6) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 6) ;
 			}
 		else if (devType == ADC0800_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 3) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
 			}
 		else if (devType == POWER_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 3) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
 			}
 		else if (devType == KEYC16_DEVICE || devType == KEYC01_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 			}
 		else if (devType == MOUSE_DEVICE) {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 			}
 		else {
 			buf[1] = addr ;
 			buf[2] = datum ;
-			cwSetValue(deviceNo, 65441, 4, buf, 3) ;
+			cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
 			}
 		usleep(100*1000) ;
 		}
@@ -580,64 +705,69 @@ cwIOX(int deviceNo, int addr, int datum) {	// return datum if ok, datum=-1=Read 
 		buf[1] = 0 ;	// high byte 0
 		buf[2] = addr ;
 		buf[3] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 4) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 4) ;
 		bufsize = 7 ;
 		}
 	else if (devType == CONTACT00_DEVICE && version > 6) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 		}
 	else if (devType == DISPLAY_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 		}
 	else if (devType == WATCHDOGXP_DEVICE || devType == SWITCHX_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 		}
 	else if (devType == KEYC16_DEVICE || devType == KEYC01_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 		bufsize = 8 ;
 		}
 	else if (devType == MOUSE_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 5) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 5) ;
 		bufsize = 4 ;
 		}
 	else if (devType == ADC0800_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 3) ;
-		bufsize = 4 ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
+		if (version >= 0x13)
+			bufsize = 8 ;
+		else if (version >= 0x10)
+			bufsize = 6 ;
+		else
+			bufsize = 4 ;
 		}
 	else if (devType == POWER_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 3) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
 		bufsize = 3 ;
 		}
 	else if (devType == ENCODER01_DEVICE) {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 6) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 6) ;
 		}
 	else {
 		buf[1] = addr ;
 		buf[2] = 0 ;
-		cwSetValue(deviceNo, 65441, 4, buf, 3) ;
+		cwSetValue(data, deviceNo, 65441, 4, buf, 3) ;
 		}
 
 	usleep(10*1000) ;
 	ok = 40 ;
 	int Xdata = -1 ;
 	while (ok) {
-		if (cwGetValue(deviceNo, 65441, 3, buf, bufsize)) {
+		if (cwGetValue(data, deviceNo, 65441, 3, buf, bufsize)) {
 			if ((buf[0] & 0x80) == 0) {
 				if (--ok == 0) {
 					// MessageBox("GetValue still not valid", "Error") ;
@@ -703,4 +833,60 @@ cwIOX(int deviceNo, int addr, int datum) {	// return datum if ok, datum=-1=Read 
 		Xdata = -1 ;
 
 	return Xdata ;
+	}
+
+
+int	
+cwDecodeBCD(unsigned char *ba, int baLength, double *zahl) {	// returns 1 if ok, 0 if failed
+	int ok = 1 ;
+
+	int signBit = 0 ;
+	int expSignBit = 0 ;
+	int exponent = 0 ;
+	unsigned char be = ba[0] ;
+
+	if (be & 0x80)	
+		signBit = 1 ;
+	if (be & 0x40)	
+		expSignBit = 1 ;
+	exponent = be & 0x1f ;
+	if (be & 0x20)		// must be 0
+		ok = 0 ;
+
+	if (baLength < 3)
+		ok = 0 ;
+
+	*zahl = 0. ;
+	for (int i=baLength-1 ; ok && i >= 1 ; i--) {
+		int z1, z2 ;
+		z1 = ba[i] >> 4 ;
+		z2 = ba[i] & 0x0f ;
+		if (z1 < 1 || z1 > 10) {
+			ok = 0 ;
+			break ;
+			}
+		z1-- ;
+		if (z2 < 1 || z2 > 10) {
+			ok = 0 ;
+			break ;
+			}
+		z2-- ;
+		*zahl = *zahl/100. + z1/10. + z2/100. ;
+		}
+
+	if (ok) {
+		*zahl *= 10. ;
+		if (expSignBit) {
+			for (int i=0 ; i < exponent ; i++)
+				*zahl /= 10. ;
+			}
+		else {
+			for (int i=0 ; i < exponent ; i++)
+				*zahl *= 10. ;
+			}
+		if (signBit)
+			*zahl *= -1. ;
+		}
+
+	return ok ;
 	}

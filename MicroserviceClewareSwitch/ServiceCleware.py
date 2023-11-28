@@ -45,7 +45,7 @@ class ServiceCleware(ServiceBase):
       update_info = json.dumps(self.cleware_helper.get_all_devices_state())
       channel.basic_publish(exchange=exchange_name, routing_key='', body=update_info)
 
-      print("Update info sent to RabbitMQ")
+      print("Sent to RabbitMQ update info :%s" % update_info)
       connection.close()
 
 

@@ -3,14 +3,14 @@
 #include "USBaccess.h"
 
 #ifdef __cplusplus
-enum USBactions {		LEDs=0, EEwrite=1, EEread=2, Reset=3, KeepCalm=4, GetInfo=5, 
-								StartMeasuring=6,		// USB-Humidity
-								Configure=7,			// USB-IO16-V10, USB-Counter-V05
-								RunPoint=10,			// USB-Encoder
-								ContactWrite=11,	// 613er IO16
-								ContactRead=12, 	// 613er IO16
-								EEread4=13				// 613
-								} ;
+// enum USBactions {		LEDs=0, EEwrite=1, EEread=2, Reset=3, KeepCalm=4, GetInfo=5, 
+// 								StartMeasuring=6,		// USB-Humidity
+// 								Configure=7,			// USB-IO16-V10, USB-Counter-V05
+// 								RunPoint=10,			// USB-Encoder
+// 								ContactWrite=11,	// 613er IO16
+// 								ContactRead=12, 	// 613er IO16
+// 								EEread4=13				// 613
+// 								} ;
 		enum USBInfoType {		OnlineTime=1, OnlineCount=2, ManualTime=3, ManualCount=4 } ;
 		enum LED_IDs {			LED_0=0, LED_1=1, LED_2=2, LED_3=3 } ;
 		enum COUNTER_IDs {		COUNTER_0=0, COUNTER_1=1 } ;
@@ -47,6 +47,7 @@ extern "C" {
 	//int 			FCWGetVersion(CUSBaccess* obj, int deviceNo);
 	//int 			FCWGetUSBType(CUSBaccess* obj, int deviceNo);
 	int 			FCWGetSerialNumber(CUSBaccess* obj, int deviceNo);
+	int*			FCWGetAllSwitchState(CUSBaccess* obj, int deviceNo);
 	//int 			FCWGetDLLVersion(void);
 	//int 			FCWGetManualOnCount(CUSBaccess* obj, int deviceNo);
 	//int 			FCWGetManualOnTime(CUSBaccess* obj, int deviceNo);

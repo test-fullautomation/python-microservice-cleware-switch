@@ -12,3 +12,7 @@ USBaccessBasic.o: USBaccessBasic.c
 
 USBAccessLinux.o: USBAccessLinux.cpp
 	g++ -c -fPIC USBAccessLinux.cpp -lstdc++ -o USBAccessLinux.o
+
+clean:
+	rm -f ../USBAccessLinux.so USBAccessLinux.o USBaccess.o USBaccessBasic.o
+

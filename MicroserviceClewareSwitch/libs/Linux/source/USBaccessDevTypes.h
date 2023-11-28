@@ -1,7 +1,20 @@
 // DLL class definitions for access to USB HID devices
 //
-// (C) 2001-2018 Copyright Cleware GmbH
-// All rights reserved
+/* Copyright (C) 2001-2022 Copyright Cleware GmbH, Wilfried Söker
+ 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 //
 // History:
 // 05.07.2017	ws	1.0 	Cleware device types used in USBaccess.h and USBaccessBasic.h

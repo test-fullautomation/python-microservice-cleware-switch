@@ -66,3 +66,12 @@ int FCWGetSerialNumber(CUSBaccess* obj, int deviceNo)
 {
     return obj->GetSerialNumber(deviceNo);
 }
+
+int* FCWGetAllSwitchState(CUSBaccess* obj, int deviceNo)
+{
+    int* array = new int[CUSBaccess::SWITCH_8 - CUSBaccess::SWITCH_0]; // Creating a sample int array
+	for (int i = 0; i < (CUSBaccess::SWITCH_8 - CUSBaccess::SWITCH_0); ++i) {
+	    array[i] = obj->GetSwitch(deviceNo, (CUSBaccess::SWITCH_IDs)(i + CUSBaccess::SWITCH_0));
+	}
+    return array;
+}

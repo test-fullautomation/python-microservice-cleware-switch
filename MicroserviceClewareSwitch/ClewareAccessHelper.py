@@ -205,12 +205,19 @@ class ClewareAccessHelper(ClewareAccessHelperAbs):
    def get_all_devices_state(self):
       res = {}
       num_device = self.real_obj.open_cleware()
-      for device_no in range(0, num_device):
-         serial = self.get_serial_number(device_no)
-         num_port = 8  # self.get_usb_type(device_no) - ClewareAccessHelperAbs.SWITCH1_DEVICE + 1
-         res[str(serial)] = {}
-         for port_no in range(0, num_port):
-            res[str(serial)].update({str(port_no): self.get_switch(serial, port_no + ClewareAccessHelperAbs.SWITCH_0)})
+      if platform.system().lower() == 'linux':
+         for device_no in range(0, num_device):
+            serial = self.get_serial_number(device_no)
+            sw_states = self.real_obj.get_all_sw_state(device_no)
+            res[str(serial)] = sw_states
+      else:
+         # num_device = self.real_obj.open_cleware()
+         for device_no in range(0, num_device):
+            serial = self.get_serial_number(device_no)
+            num_port = 8  # self.get_usb_type(device_no) - ClewareAccessHelperAbs.SWITCH1_DEVICE + 1
+            res[str(serial)] = {}
+            for port_no in range(0, num_port):
+               res[str(serial)].update({str(port_no): self.get_switch(serial, port_no + ClewareAccessHelperAbs.SWITCH_0)})
       return res
 
 
