@@ -55,6 +55,8 @@ function loadDetailCleware (){
     case 2:
       // Action for the second index
       console.log('Selected Device Type: Cleware Switch Box');
+      const swBoxPath = path.resolve(`servicesGUI/${SERVICE_NAME}${VERSION}/SwitchBox.html`);
+      loadContent(swBoxPath, 'SpecificClewareDevice', 'handleSwitchBoxContent');
       // Add your specific logic here
       break;
     // Add more cases as needed
