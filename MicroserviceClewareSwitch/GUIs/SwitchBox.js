@@ -24,23 +24,25 @@ function handleSwitchBoxContent() {
  }
 
  function toggleLED(element, value) {
-   const containerId = element.parentElement.id;
+  //  const containerId = element.parentElement.id;
 
  
-   // Get all LED indicators within the same container
-   const allLEDs = document.querySelectorAll(`#${containerId} .led`);
+  //  // Get all LED indicators within the same container
+  //  const allLEDs = document.querySelectorAll(`#${containerId} .led`);
  
-   // Toggle the LED classes
-   allLEDs.forEach(led => {
-     if (led === element) {
-       led.classList.toggle('led-on');
-     } else {
-      led.classList.remove('led-on');
-    }
-   });
- 
+  //  // Toggle the LED classes
+  //  allLEDs.forEach(led => {
+  //    if (led === element) {
+  //      led.classList.toggle('led-on');
+  //    } else {
+  //     led.classList.remove('led-on');
+  //   }
+  //  });
+  element.classList.toggle('led-on');
+  const currentState = element.classList.contains('led-on') ? 'on' : 'off';
+  console.log(`Current state: ${currentState}`);
   //  const otherLEDValue = getOtherLEDValue(containerId === 'usbIn' ? 'usbOut' : 'usbIn');
-   updateSwitch(value);
+   updateSwitch(value, currentState);
  }
  
 //  function toggleUSBIn(element, value) {
@@ -69,9 +71,9 @@ function handleSwitchBoxContent() {
    return mapValue[otherLED.id]; // Assuming LED values are stored in the 'data-value' attribute
  }
  
- function updateSwitch(ledValue) {
-   console.log(`LED Value: ${ledValue}, `);
-   var index = ledValue;
+ function updateSwitch(ledIndex, onOff) {
+   console.log(`LED Value: ${ledIndex}, `);
+   var index = ledIndex;
 
    const hexString = "0x10";
    const sw0_idx = parseInt(hexString, 16);
@@ -81,7 +83,7 @@ function handleSwitchBoxContent() {
    // Perform actions based on LED values
    var jsonData = {
       'method': 'svc_api_set_switch',
-      'args': [selectedValue, sw0_idx + index, 'on']
+      'args': [selectedValue, sw0_idx + index, onOff]
     };
     requestClewareService(jsonData)
       .then(function (data) {
@@ -95,20 +97,23 @@ function handleSwitchBoxContent() {
  function updateIndicators(array) {
    const allIndicators = document.querySelectorAll('.led');
 
-   allIndicators.forEach(indicator => {
-   indicator.classList.toggle('led-on', false);
+   allIndicators.forEach((indicator, i) => {
+    if (array[i] === 1)
+      indicator.classList.toggle('led-on', true);
+    else
+     indicator.classList.toggle('led-on', false);
    });
 
-   const onIndex = array.indexOf(1);
-   if (onIndex === -1)
-   {
-      const inElement = document.getElementById('led1');
-      inElement.classList.toggle('led-on');
-      return;
-   }
+  //  const onIndex = array.indexOf(1);
+  //  if (onIndex === -1)
+  //  {
+  //     const inElement = document.getElementById('led1');
+  //     inElement.classList.toggle('led-on');
+  //     return;
+  //  }
 
-   const ledElement =  document.getElementById('led' + (onIndex + 1 ));
-   ledElement.classList.add('led-on', true);
+  //  const ledElement =  document.getElementById('led' + (onIndex + 1 ));
+  //  ledElement.classList.add('led-on', true);
 }
 
 var amqp = require('amqplib/callback_api');
