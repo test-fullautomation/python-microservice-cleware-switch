@@ -2,8 +2,12 @@
 // var path = require('path');
 
 global.clewareState = null;
-const VERSION = "1.0.0";
-const SERVICE_NAME = "ServiceCleware";
+var ServiceCleware = {
+  VERSION: "1.0.0",
+  SERVICE_NAME: "ServiceCleware"
+};
+// let VERSION = "1.0.0";
+// let SERVICE_NAME = "ServiceCleware";
 // document.addEventListener('DOMContentLoaded', function () {
 //   // Your JSON data
 //   var jsonData = {
@@ -20,6 +24,12 @@ const SERVICE_NAME = "ServiceCleware";
 //       console.error('Error loading data:', error);
 //     });
 // });
+var isInitialized = false;
+function onInitizlizeCleware()
+{
+  getAllDevicesState();
+  
+}
 
 function getAllDevicesState()
 {
@@ -38,6 +48,8 @@ function getAllDevicesState()
     });
 }
 
+
+
 function loadDetailCleware (){
   // Get the selected index
   var selectedIndex = document.getElementById('deviceType').selectedIndex;
@@ -47,7 +59,7 @@ function loadDetailCleware (){
     case 1:
       // Action for the first index
       console.log('Selected Device Type: Cleware USB Multiplexer');
-      const clewareDetailPath = path.resolve(`servicesGUI/${SERVICE_NAME}${VERSION}/Multiplexer.html`);
+      const clewareDetailPath = path.resolve(`servicesGUI/${ServiceCleware.SERVICE_NAME}${ServiceCleware.VERSION}/Multiplexer.html`);
       loadContent(clewareDetailPath, 'SpecificClewareDevice', 'handleMultiplexerContent');
       
       // Add your specific logic here
@@ -55,7 +67,7 @@ function loadDetailCleware (){
     case 2:
       // Action for the second index
       console.log('Selected Device Type: Cleware Switch Box');
-      const swBoxPath = path.resolve(`servicesGUI/${SERVICE_NAME}${VERSION}/SwitchBox.html`);
+      const swBoxPath = path.resolve(`servicesGUI/${ServiceCleware.SERVICE_NAME}${ServiceCleware.VERSION}/SwitchBox.html`);
       loadContent(swBoxPath, 'SpecificClewareDevice', 'handleSwitchBoxContent');
       // Add your specific logic here
       break;
@@ -68,22 +80,26 @@ function loadDetailCleware (){
 }
 
 function populateSelect(data) {
-  var select = document.getElementById('deviceNumber');
+  if (!isInitialized)
+  {
+    var select = document.getElementById('deviceNumber');
 
-  // Clear existing options
-  while (select.options.length > 1) {
-    select.remove(1);
-  }
-
-  // Access 'result_data' from 'data'
-  const resultData = data.result_data;
-  for (let key in resultData) {
-    // Check if the key is a direct property of the object (not inherited)
-    if (resultData.hasOwnProperty(key)) {
-      var option = document.createElement('option');
-      option.text = key;
-      select.add(option);
+    // Clear existing options
+    while (select.options.length > 1) {
+      select.remove(1);
     }
+
+    // Access 'result_data' from 'data'
+    const resultData = data.result_data;
+    for (let key in resultData) {
+      // Check if the key is a direct property of the object (not inherited)
+      if (resultData.hasOwnProperty(key)) {
+        var option = document.createElement('option');
+        option.text = key;
+        select.add(option);
+      }
+    }
+    isInitialized = true;
   }
   // // Add new options based on the data
   // data.result_data.forEach(function (value) {
@@ -91,6 +107,116 @@ function populateSelect(data) {
   //   option.text = value;
   //   select.add(option);
   // });
+}
+
+function saveComboboxOptions() {
+  const comboboxOptions = {
+      deviceNumber: getComboboxOptions('deviceNumber'),
+      deviceType: getComboboxOptions('deviceType')
+      // Add more combobox options as needed
+  };
+
+  const savedState = JSON.parse(localStorage.getItem('ServiceCleware')) || {};
+  savedState.comboboxOptions = comboboxOptions;
+
+  localStorage.setItem('ServiceCleware', JSON.stringify(savedState));
+}
+
+// Function to get combobox options from localStorage
+function getComboboxOptions(comboboxId) {
+  const combobox = document.getElementById(comboboxId);
+  const options = Array.from(combobox.options).map(option => ({
+      value: option.value,
+      text: option.text
+  }));
+  return options;
+}
+
+// Function to restore combobox options from localStorage
+function restoreComboboxOptions() {
+  const savedState = JSON.parse(localStorage.getItem('ServiceCleware')) || {};
+  const comboboxOptions = savedState.comboboxOptions || {};
+
+  setComboboxOptions('deviceNumber', comboboxOptions.deviceNumber);
+  setComboboxOptions('deviceType', comboboxOptions.deviceType);
+  // Restore options for other comboboxes as needed
+}
+
+// Function to set combobox options
+function setComboboxOptions(comboboxId, options) {
+  const combobox = document.getElementById(comboboxId);
+  combobox.innerHTML = ""; // Clear existing options
+
+  options.forEach(option => {
+      const newOption = document.createElement('option');
+      newOption.value = option.value;
+      newOption.text = option.text;
+      combobox.appendChild(newOption);
+  });
+}
+
+
+function reloadServiceClewareData(){
+  return new Promise((resolve, reject) => {
+    const deviceNumberCombobox = document.getElementById('deviceNumber');
+    const deviceTypeComboBox = document.getElementById('deviceType');
+
+    // Example asynchronous task (getAllDevicesState)
+    // getAllDevicesState();
+
+    // Load saved state from localStorage
+    const savedState = JSON.parse(localStorage.getItem('ServiceCleware')) || {};
+
+    if (JSON.stringify(savedState) !== '{}') {
+      restoreComboboxOptions();
+      deviceNumberCombobox.value = savedState.deviceNumberComboboxValue || "";
+      deviceTypeComboBox.value = savedState.deviceTypeComboBoxValue || "";
+      resolve(); // Resolve the promise once tasks are complete
+    } else {
+      reject(new Error('No saved state found')); // Reject if no saved state
+    }
+  });
+}
+
+function loadServiceCleware()
+{
+  // const deviceNumberCombobox = document.getElementById('deviceNumber');
+  // const deviceTypeComboBox = document.getElementById('deviceType');
+  // getAllDevicesState();
+
+  // // Load saved state from localStorage
+  // const savedState = JSON.parse(localStorage.getItem('ServiceCleware')) || {};
+
+  // if (JSON.stringify(savedState) !== '{}') {
+  //   deviceNumberCombobox.value = savedState.deviceNumberComboboxValue || "";
+  //   deviceTypeComboBox.value = savedState.deviceTypeComboBoxValue || "";
+  //   loadDetailCleware();
+  // }
+  reloadServiceClewareData()
+  .then(() => {
+    // Only after loadServiceCleware has completed successfully,
+    // we execute loadDetailCleware
+    loadDetailCleware();
+  })
+  .catch((error) => {
+    console.error('Error during loadServiceCleware:', error.message);
+  });
+}
+
+function unloadServiceCleware() {
+  saveState();
+  saveComboboxOptions();
+}
+
+function saveState() {
+  const savedState = JSON.parse(localStorage.getItem('ServiceCleware')) || {};
+  const deviceNumberCombobox = document.getElementById('deviceNumber');
+  const deviceTypeComboBox = document.getElementById('deviceType');
+  savedState.deviceNumberComboboxValue = deviceNumberCombobox.value;
+  savedState.deviceTypeComboBoxValue = deviceTypeComboBox.value;
+
+
+  localStorage.setItem('ServiceCleware', JSON.stringify(savedState));
 }
 
 function requestClewareService(jsonData) {
