@@ -28,6 +28,35 @@ class ServiceCleware(ServiceBase):
       return self.cleware_helper.get_all_devices_state()
 
    def svc_api_set_switch(self, device_no, switch_id, state):
+      """
+Set state for a Cleware device's switch.
+
+**Arguments:**
+
+* ``device_no``
+
+  / *Condition*: required / *Type*: str /
+
+  Cleware device's number.
+
+* ``switch_id``
+
+  / *Condition*: required / *Type*: str /
+
+  Switch number to turn on or off.
+
+* ``state``
+
+  / *Condition*: required / *Type*: str /
+
+  State of swith to set (on/off).
+
+**Returns:**
+
+  / *Type*: int /
+
+  Return ret code, 1 for succeed, 0 for failure.
+      """
       ret = self.cleware_helper.set_switch(device_no, switch_id, state)
       self.notify_updates()
       return ret
