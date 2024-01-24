@@ -105,6 +105,7 @@ function handleMultiplexerContent() {
     requestClewareService(jsonData)
       .then(function (data) {
          console.log(`Set sw return: ${data}`);
+         getAllDevicesState();
       })
       .catch(function (error) {
         console.error('Error loading data:', error);
@@ -132,25 +133,6 @@ function handleMultiplexerContent() {
 }
 
 var amqp = require('amqplib/callback_api');
-// async function receiveUpdates() {
-//    const connection = await amqp.connect('amqp://localhost');
-//    const channel = await connection.createChannel();
-
-//    const exchangeName = 'updates_exchange';
-//    const queueName = 'updates_queue';
-
-//    await channel.assertExchange(exchangeName, 'topic');
-//    const assertQueue = await channel.assertQueue(queueName, { exclusive: true });
-
-//    channel.bindQueue(assertQueue.queue, exchangeName, 'updates');
-
-//    console.log('Waiting for updates...');
-
-//    channel.consume(assertQueue.queue, (msg) => {
-//        console.log('Received update:', msg.content.toString());
-//        // Process the received update data here, for example, update UI, trigger actions, etc.
-//    }, { noAck: true });
-// }
 
 amqp.connect('amqp://localhost', function(error0, connection) {
   if (error0) {
