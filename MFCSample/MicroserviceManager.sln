@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.34407.143
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MicroserviceManager", "MicroserviceManager\MicroserviceManager.vcxproj", "{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Debug|x64.ActiveCfg = Debug|x64
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Debug|x64.Build.0 = Debug|x64
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Debug|x86.ActiveCfg = Debug|Win32
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Debug|x86.Build.0 = Debug|Win32
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Release|x64.ActiveCfg = Release|x64
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Release|x64.Build.0 = Release|x64
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Release|x86.ActiveCfg = Release|Win32
+		{45EAE71D-3D75-4EA9-BEA1-59C240A6CF81}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {784D511D-98A3-42E4-B048-B19D5CACD619}
+	EndGlobalSection
+EndGlobal
