@@ -35,9 +35,10 @@ string ServiceClient::GenerateUUID()
     return ss.str();
 }
 
-int ServiceClient::RequestService(std::string jsonData, std::function<void(const std::string&)> callback) {
-    amqp_connection_state_t conn = amqp_new_connection();
-    amqp_socket_t* socket = amqp_tcp_socket_new(conn);
+int ServiceClient::connect()
+{
+    mConn = amqp_new_connection();
+    amqp_socket_t* socket = amqp_tcp_socket_new(mConn);
     if (!socket) {
         // Handle socket creation failure
         std::cerr << "Error creating TCP socket" << std::endl;
@@ -46,39 +47,62 @@ int ServiceClient::RequestService(std::string jsonData, std::function<void(const
 
     ////amqp_socket_open(socket, mHost.c_str(), mPort);
     //int status = amqp_socket_open(socket, mHost.c_str(), mPort);
-    int status = amqp_socket_open(socket, "localhost", 5672);
+    int status = amqp_socket_open(socket, mHost.c_str(), mPort);
     if (status != AMQP_STATUS_OK) {
         // Handle socket open failure
         std::cerr << "Error opening socket: " << amqp_error_string2(status) << std::endl;
+        // Close the connection after processing the message
+        amqp_connection_close(mConn, AMQP_REPLY_SUCCESS);
+        amqp_destroy_connection(mConn);
         return -1;  // or handle the error appropriately
     }
-    amqp_login(conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN,
+
+    amqp_login(mConn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN,
         "guest", "guest");
 
-    amqp_channel_open(conn, 1);
-    //amqp_channel_close(conn, 1, AMQP_REPLY_SUCCESS);
-    amqp_rpc_reply_t reply = amqp_get_rpc_reply(conn);
+    //amqp_channel_open(mConn, 1);
+    //amqp_channel_close(mConn, 1, AMQP_REPLY_SUCCESS);
+    amqp_rpc_reply_t reply = amqp_get_rpc_reply(mConn);
     if (reply.reply_type == AMQP_RESPONSE_LIBRARY_EXCEPTION) {
-        string test(amqp_error_string2(reply.library_error));
         printf("Exception: %s", amqp_error_string2(reply.library_error));
         std::cerr << "Library exception: " << amqp_error_string2(reply.library_error) << std::endl;
+        return reply.library_error;
     }
-    else {
+    else if (reply.reply_type > AMQP_RESPONSE_NORMAL) {
         std::cerr << "Other error type: " << reply.reply_type << std::endl;
+        return (int)reply.reply_type;
     }
 
+    mIsConnected = true;
+    return 1;
+}
+
+void ServiceClient::disconnect()
+{
+    if (mIsConnected)
+    {
+        amqp_connection_close(mConn, AMQP_REPLY_SUCCESS);
+        amqp_destroy_connection(mConn);
+        mIsConnected = false;
+    }
+}
+
+
+int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std::string&)> callback)
+{
+    amqp_channel_open(mConn, 1);
     // Declare an exclusive queue
-    amqp_queue_declare_ok_t_* tmp_queue = amqp_queue_declare(conn, 1, amqp_empty_bytes, 0, 0, 1, 1, amqp_empty_table);
+    amqp_queue_declare_ok_t_* tmp_queue = amqp_queue_declare(mConn, 1, amqp_empty_bytes, 0, 0, 1, 1, amqp_empty_table);
 
     // Get the queue name
     amqp_bytes_t queueName = tmp_queue->queue;//amqp_queue_declare(conn, 1, amqp_empty_bytes, 0, 0, 1, 0, amqp_empty_table)->queue;
 
     string correlationId = GenerateUUID();
 
-    std::cout << " [x] Requesting Cleware Service with data: " << jsonData << std::endl;
+    std::cout << " [x] Requesting Cleware Service with data: " << req->toString() << std::endl;
 
     // Consume the response from the exclusive queue
-    amqp_basic_consume(conn, 1, queueName, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
+    amqp_basic_consume(mConn, 1, queueName, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
     // Prepare the message properties
     amqp_basic_properties_t properties;
     properties._flags = AMQP_BASIC_REPLY_TO_FLAG | AMQP_BASIC_CORRELATION_ID_FLAG;
@@ -86,20 +110,20 @@ int ServiceClient::RequestService(std::string jsonData, std::function<void(const
     const char* correlationIdString = correlationId.c_str();
     properties.correlation_id = amqp_cstring_bytes(correlationIdString);
     // Send the request to the service using routing key 
-    amqp_basic_publish( conn, 
-                        1, 
-                        amqp_cstring_bytes(SERVICE_REQUEST_EXCHANGE.c_str()), 
-                        amqp_cstring_bytes(mRoutingKey.c_str()), 
-                        0,  
-                        0, 
-                        &properties,
-                        amqp_cstring_bytes(jsonData.c_str()));
+    amqp_basic_publish(mConn,
+        1,
+        amqp_cstring_bytes(SERVICE_REQUEST_EXCHANGE.c_str()),
+        amqp_cstring_bytes(mRoutingKey.c_str()),
+        0,
+        0,
+        &properties,
+        amqp_cstring_bytes(req->toString().c_str()));
 
     amqp_rpc_reply_t res;
     amqp_envelope_t envelope;
 
     // Consume a message
-    res = amqp_consume_message(conn, &envelope, NULL, 0);
+    res = amqp_consume_message(mConn, &envelope, NULL, 0);
 
     // Check if the message was consumed successfully
     if (res.reply_type == AMQP_RESPONSE_NORMAL) {
@@ -124,17 +148,14 @@ int ServiceClient::RequestService(std::string jsonData, std::function<void(const
 
         // Destroy the envelope
         amqp_destroy_envelope(&envelope);
-
-        // Close the connection after processing the message
-        amqp_connection_close(conn, AMQP_REPLY_SUCCESS);
-        amqp_destroy_connection(conn);
     }
     else {
         // Handle the error (res.reply_type contains the error type)
         std::cerr << "Error consuming message: " << res.library_error << std::endl;
+        return res.library_error;
     }
 
-    // Continue with the rest of your code...
-
+    amqp_channel_close(mConn, 1, AMQP_REPLY_SUCCESS);
     return 1;
-}
+}   
+

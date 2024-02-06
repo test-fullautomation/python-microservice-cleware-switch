@@ -36,6 +36,9 @@
     <ClInclude Include="ServiceClient.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ServiceRequest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MicroserviceManager.cpp">

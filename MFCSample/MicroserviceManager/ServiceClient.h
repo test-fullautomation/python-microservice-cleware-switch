@@ -1,6 +1,6 @@
 #pragma once
 #ifndef SERVICECLIENT_H
-#define SERVICECOMMUNICATOR_H
+#define SERVICECLIENT_H
 #include <random>
 #include <iomanip>
 #include <sstream>
@@ -11,6 +11,7 @@
 #include <amqp_framing.h>
 #include <amqp_tcp_socket.h>
 #include <json/json.h>
+#include "ServiceRequest.h"
 using namespace std;
 
 class ServiceClient
@@ -21,6 +22,7 @@ private:
 	string mHost;
     string mRoutingKey;
 	amqp_connection_state_t mConn;
+    bool mIsConnected;
 
 public:
     static const string SERVICE_REQUEST_EXCHANGE;
@@ -29,15 +31,20 @@ public:
 		mHost = host;
 		mServiceName = seviceName;
         mRoutingKey = routingKey;
+        mIsConnected = false;
+        mConn = NULL;
 	}
+
+    int connect();
+
+    void disconnect();
 
     /**
      * @brief 
      * @return 
     */
     static std::string GenerateUUID();
-
-    int RequestService(std::string jsonData, std::function<void(const std::string&)> callback);
+    int sendRequest(ServiceRequest* request, std::function<void(const std::string&)> callback);
     
 };
 #endif // SERVICECOMMUNICATOR_H
