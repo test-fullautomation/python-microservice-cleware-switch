@@ -112,7 +112,7 @@ void ServiceClient::disconnect()
  *
  * @return 1 if the request is successfully sent, otherwise an error code.
  */
-int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std::string&)> callback)
+int ServiceClient::sendRequest(ServiceRequest* request, std::function<void(const std::string&)> callback)
 {
     amqp_channel_open(mConn, 1);
     // Declare an exclusive queue
@@ -123,7 +123,7 @@ int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std
 
     string correlationId = GenerateUUID();
 
-    std::cout << " [x] Requesting Cleware Service with data: " << req->toString() << std::endl;
+    std::cout << " [x] Requesting Cleware Service with data: " << request->toString() << std::endl;
 
     // Consume the response from the exclusive queue
     amqp_basic_consume(mConn, 1, queueName, amqp_empty_bytes, 0, 1, 0, amqp_empty_table);
@@ -141,7 +141,7 @@ int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std
         0,
         0,
         &properties,
-        amqp_cstring_bytes(req->toString().c_str()));
+        amqp_cstring_bytes(request->toString().c_str()));
 
     amqp_rpc_reply_t res;
     amqp_envelope_t envelope;
@@ -160,7 +160,7 @@ int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std
             std::string correlationId((char*)properties->correlation_id.bytes, properties->correlation_id.len);
 
             // Check if the correlation_id matches
-            if (correlationId == correlationId) {
+            if (correlationIdString == correlationId) {
                 // Access the message body
                 std::string result((char*)envelope.message.body.bytes, envelope.message.body.len);
 
