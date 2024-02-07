@@ -26,6 +26,9 @@ public:
 	CComboBox m_comboDeviceNumber;
 	CComboBox m_comboDeviceType;
 
+	CButton m_btInitialize;
+	CButton m_btApply;
+
 	std::vector<CButton*> m_vMultiplexer;
 	std::vector<CButton*> m_vSwitchBox;
 
@@ -35,12 +38,8 @@ public:
 
 	ServiceClient*	mClewareService;
 
-	const string METHOD = "method";
-	const string ARGS = "args";
-
-	const string REQ_GET_ALL_DEVICES_STATE = "svc_api_get_all_devices_state";
-	const string REQ_SET_SWITCH = "svc_api_set_switch";
-
+	bool m_bIsInitialized;
+	bool m_bIsApplied;
 
 // Implementation
 protected:

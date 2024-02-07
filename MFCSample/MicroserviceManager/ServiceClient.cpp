@@ -1,13 +1,19 @@
+/**
+ * @file ServiceClient.h
+ * @brief Implementation of the ServiceClient class methods.
+ * @author Nguyen Huynh Tri Cuong (MS/EMC51-XC)
+ * @date 30th Jan, 2024.
+ */
 #include "pch.h"
 #include "ServiceClient.h"
 
 const string ServiceClient::SERVICE_REQUEST_EXCHANGE = "services_request";
 
 /**
- * @brief 
- * 
- * @return 
-*/
+ * @brief Generates a UUID (Universally Unique Identifier).
+ *
+ * @return A string representing the generated UUID.
+ */
 string ServiceClient::GenerateUUID()
 {
     // Use a random device and a uniform distribution to generate random bytes
@@ -35,6 +41,11 @@ string ServiceClient::GenerateUUID()
     return ss.str();
 }
 
+/**
+ * @brief Connects to the service.
+ *
+ * @return 1 if connection is successful, otherwise an error code.
+ */
 int ServiceClient::connect()
 {
     mConn = amqp_new_connection();
@@ -77,6 +88,9 @@ int ServiceClient::connect()
     return 1;
 }
 
+/**
+ * @brief Disconnects from the service.
+ */
 void ServiceClient::disconnect()
 {
     if (mIsConnected)
@@ -87,7 +101,17 @@ void ServiceClient::disconnect()
     }
 }
 
-
+/**
+ * @brief Sends a request to the service and invokes the callback function with the response.
+ *
+ * @param request Pointer to the service request object.
+ * @param callback Callback function to be invoked with the response.
+ *                 The response will be passed as a parameter to the callback function.
+ *                 The callback function should have the signature: void(const std::string&).
+ *                 The response is represented as a string.
+ *
+ * @return 1 if the request is successfully sent, otherwise an error code.
+ */
 int ServiceClient::sendRequest(ServiceRequest* req, std::function<void(const std::string&)> callback)
 {
     amqp_channel_open(mConn, 1);

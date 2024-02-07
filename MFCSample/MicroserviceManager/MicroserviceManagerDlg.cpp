@@ -62,6 +62,8 @@ void CMicroserviceManagerDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_COMBO_DEVICE_NUM, m_comboDeviceNumber);
 	DDX_Control(pDX, IDC_COMBO_DEVICE_TYPE, m_comboDeviceType);
+	DDX_Control(pDX, IDC_BUTTON_INITIALIZE, m_btInitialize);
+	DDX_Control(pDX, IDC_BUTTON_APPLY, m_btApply);
 	for (int i = IDC_OUT1; i <= IDC_OUT4; i++)
 	{
 		CButton* btn = new CButton();
@@ -138,8 +140,15 @@ BOOL CMicroserviceManagerDlg::OnInitDialog()
 	// TODO: Add extra initialization here
 	m_comboDeviceType.AddString(_T("Multiplexer"));
 	m_comboDeviceType.AddString(_T("Switchbox"));
+	m_comboDeviceType.SetCurSel(0);
+	m_comboDeviceType.EnableWindow(FALSE);
+	m_comboDeviceNumber.EnableWindow(FALSE);
+	m_btApply.EnableWindow(FALSE);
 
 	mClewareService = new ServiceClient("ServiceCleware", "127.0.0.1", 5672, "ServiceClewareKey");
+
+	m_bIsInitialized = false;
+	m_bIsApplied = false;
 
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -268,7 +277,6 @@ void CMicroserviceManagerDlg::UpdateAllDevicesState()
 			std::map<std::string, Json::Value> resultMap = jsonToMap(jsonDevicesInfor);
 			Json::StreamWriterBuilder writerBuilder;
 			std::string jsonString = Json::writeString(writerBuilder, jsonDevicesInfor);
-			m_comboDeviceNumber.ResetContent();
 			for (Json::Value::const_iterator it = jsonDevicesInfor.begin(); it != jsonDevicesInfor.end(); ++it) {
 				std::string key = it.key().asString();
 				m_comboDeviceNumber.AddString(CString(key.c_str()));
@@ -284,16 +292,48 @@ void CMicroserviceManagerDlg::UpdateAllDevicesState()
 void CMicroserviceManagerDlg::OnBnClickedButtonInitialize()
 {
 	// TODO: Add your control notification handler code here
-	int res = mClewareService->connect();
-	if (res != 1)
+	if (!m_bIsInitialized)
 	{
-		CString message;
-		message.Format(_T("Unable to connect Cleware service. Error code: %d"), res);+
-		AfxMessageBox(message);
+		int res = mClewareService->connect();
+		if (res != 1)
+		{
+			CString message;
+			message.Format(_T("Unable to connect Cleware service. Error code: %d"), res);
+			AfxMessageBox(message);
+		}
+		else
+		{
+			m_comboDeviceNumber.ResetContent();
+			UpdateAllDevicesState();			
+			m_btInitialize.SetWindowTextW(_T("Uninitialize"));
+			m_btApply.EnableWindow(TRUE);
+			m_comboDeviceType.EnableWindow(TRUE);
+			m_comboDeviceNumber.EnableWindow(TRUE);			
+			m_bIsInitialized = true;
+		}
 	}
 	else
 	{
-		UpdateAllDevicesState();
+		mClewareService->disconnect();
+		m_btInitialize.SetWindowTextW(_T("Initialize"));
+		m_btApply.EnableWindow(FALSE);
+		m_comboDeviceType.EnableWindow(FALSE);		
+		m_comboDeviceNumber.EnableWindow(FALSE);
+		int selectedTypeIdx = m_comboDeviceType.GetCurSel();
+		if (selectedTypeIdx != CB_ERR) 
+		{
+			if (selectedTypeIdx == 0)
+			{
+				std::for_each(m_vMultiplexer.begin(), m_vMultiplexer.end(), CMicroserviceManagerDlg::DisableElement);
+
+			}
+			else
+			{
+				std::for_each(m_vSwitchBox.begin(), m_vSwitchBox.end(), CMicroserviceManagerDlg::DisableElement);
+			}
+		}
+		m_comboDeviceType.SetCurSel(0);
+		m_bIsInitialized = false;
 	}	
 }
 
@@ -309,22 +349,34 @@ int findOnIndex(const std::vector<int>& vec) {
 
 void CMicroserviceManagerDlg::OnBnClickedButtonApply()
 {
-	int selectedIndex = m_comboDeviceNumber.GetCurSel();
+	int selectedNumIdx = m_comboDeviceNumber.GetCurSel();
 
-	if (selectedIndex != CB_ERR) {
-		CString selectedItemText;
-		m_comboDeviceNumber.GetLBText(selectedIndex, selectedItemText);
-
-		// Now, 'selectedItemText' contains the text of the selected item
-		std::string selectedKey = CT2A(selectedItemText);
-		if (jsonDeviceState.isMember(selectedKey)) {
-			// Key exists, handle accordingly
-			Json::Value switchState = jsonDeviceState[selectedKey];
-
-			// Create a std::vector to store the values
-			std::vector<int> valuesArray;
-
-			// Iterate through the values in the JSON object and add them to the vector
+	if (selectedNumIdx != CB_ERR) {
+		CString selectedNumText;
+		m_comboDeviceNumber.GetLBText(selectedNumIdx, selectedNumText);
+		std::string selectedDeviceNum = CT2A(selectedNumText);
+		int selectedTypeIdx = m_comboDeviceType.GetCurSel();
+		UpdateAllDevicesState();
+		if (jsonDeviceState.isMember(selectedDeviceNum)) {
+			Json::Value switchState = jsonDeviceState[selectedDeviceNum];
+			Json::Value::Members keys = switchState.getMemberNames();
+			for (unsigned int i = 0; i < keys.size(); ++i) {
+				const Json::Value& value = switchState[keys[i]];
+				if (value.asInt() == 1)
+				{
+					if (selectedTypeIdx == 0)
+					{
+						i < 4 ? m_vRadioMplxIn[0]->SetCheck(BST_CHECKED) : m_vRadioMplxIn[1]->SetCheck(BST_CHECKED);
+						m_vRadioMplxOut[i % 4]->SetCheck(BST_CHECKED);
+						break;
+					}
+					else
+					{
+						m_vSwitchBox[i]->SetCheck(BST_CHECKED);
+					}
+				}
+			}
+			/*std::vector<int> valuesArray;
 			for (const auto& value : switchState) {
 				valuesArray.push_back(value.asInt());
 			}
@@ -334,16 +386,35 @@ void CMicroserviceManagerDlg::OnBnClickedButtonApply()
 			{
 				onIndex < 4 ? m_vRadioMplxIn[0]->SetCheck(BST_CHECKED) : m_vRadioMplxIn[1]->SetCheck(BST_CHECKED);
 				m_vRadioMplxOut[onIndex % 4]->SetCheck(BST_CHECKED);
-			}
-			
+			}			*/
 		}
-		else {
-			// Key doesn't exist
-			AfxMessageBox(selectedItemText + _T(" is not a valid device."));
+		else 
+		{
+			AfxMessageBox(selectedNumText + _T(" is not a valid device number."));
 		}
 
+		
+		if (selectedTypeIdx != CB_ERR) 
+		{
+			if (selectedTypeIdx == 0)
+			{
+				std::for_each(m_vMultiplexer.begin(), m_vMultiplexer.end(), CMicroserviceManagerDlg::EnableElement);
+				
+			}
+			else
+			{
+				std::for_each(m_vSwitchBox.begin(), m_vSwitchBox.end(), CMicroserviceManagerDlg::EnableElement);
+			}
+		}
+		else 
+		{
+			CString selectedTypeText;
+			m_comboDeviceNumber.GetLBText(selectedTypeIdx, selectedTypeText);
+			AfxMessageBox(selectedTypeText + _T(" is not a valid device type."));
+		}
 	}
-	else {
+	else 
+	{
 		// No item selected or an error occurred
 		AfxMessageBox(_T("No device selected."));
 	}
@@ -440,6 +511,7 @@ void CMicroserviceManagerDlg::OnCbnSelchangeComboDeviceType()
 		if (selectedKey == "Multiplexer")
 		{
 			std::for_each(m_vMultiplexer.begin(), m_vMultiplexer.end(), CMicroserviceManagerDlg::ShowElement);
+			std::for_each(m_vMultiplexer.begin(), m_vMultiplexer.end(), CMicroserviceManagerDlg::DisableElement);
 			std::for_each(m_vSwitchBox.begin(), m_vSwitchBox.end(), CMicroserviceManagerDlg::HideElement);
 
 		}
@@ -447,6 +519,7 @@ void CMicroserviceManagerDlg::OnCbnSelchangeComboDeviceType()
 		{
 			std::for_each(m_vMultiplexer.begin(), m_vMultiplexer.end(), CMicroserviceManagerDlg::HideElement);
 			std::for_each(m_vSwitchBox.begin(), m_vSwitchBox.end(), CMicroserviceManagerDlg::ShowElement);
+			std::for_each(m_vSwitchBox.begin(), m_vSwitchBox.end(), CMicroserviceManagerDlg::DisableElement);
 		}
 
 	}
