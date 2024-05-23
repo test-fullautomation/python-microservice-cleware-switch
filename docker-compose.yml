@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: "rabbitmq:3.13-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    expose:
+      - "5672"
+      - "15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "guest"
+      RABBITMQ_DEFAULT_PASS: "guest"
+    networks:
+      - switchnetwork
+
+  cleware-service:
+    build:
+      context: ./MicroserviceClewareSwitch
+      dockerfile: Dockerfile
+    container_name: cleware-service
+    depends_on:
+      - rabbitmq
+      # - receiver
+    # volumes:
+    #   - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+    #   - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    environment:
+      RABBITMQ_USERNAME: "guest"
+      RABBITMQ_PASSSWORD: "guest"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_QUEUE: dataqueue
+      RABBITMQ_ROUTING_KEY: dataqueue 
+      RABBITMQ_EXCHANGE: exchange_test
+    networks:
+      - switchnetwork
+    restart: always
+    healthcheck:
+      interval: 10s
+      timeout: 5s
+
+  # receiver:
+  #   container_name: receiver
+  #   build:
+  #     context: ./receiver
+  #     dockerfile: Dockerfile
+  #   restart: always
+  #   depends_on:
+  #     - rabbitmqServer
+  #   ports:
+  #     - 8000:8000
+  #   environment:
+  #     RABBITMQ_USERNAME: admin
+  #     RABBITMQ_PASSSWORD: pass
+  #     RABBITMQ_HOST: rabbitmqServer
+  #     RABBITMQ_QUEUE: dataqueue
+  #     RABBITMQ_ROUTING_KEY: dataqueue 
+  #     RABBITMQ_EXCHANGE: exchange_test
+  #   networks:
+  #     - rabbitnetwork
+
+networks:
+  switchnetwork:
+    driver: bridge

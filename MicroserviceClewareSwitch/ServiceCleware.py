@@ -89,7 +89,7 @@ def signal_handler(sig, frame, obj):
 
 
 if __name__ == '__main__':
-   svc = ServiceCleware(host='localhost')
+   svc = ServiceCleware(host='rabbitmq')
 
    # Register the signal handler for SIGINT (Ctrl+C)
    for sign in (SIGABRT, SIGILL, SIGINT, SIGSEGV, SIGTERM):

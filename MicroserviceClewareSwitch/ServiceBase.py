@@ -349,5 +349,5 @@ Get the service version.
 
 
 if __name__ == '__main__':
-   svc = ServiceBase(host='localhost')
+   svc = ServiceBase(host='rabbitmq')
    svc.serve()
