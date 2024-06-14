@@ -1,12 +1,47 @@
+#  Copyright 2020-2024 Robert Bosch GmbH
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# *******************************************************************************
+#
+# File: ServiceRegistry.py
+#
+# Initially created by Nguyen Huynh Tri Cuong (RBVH/ECM51) / Nov 2023
+#
+# Description:
+#   Provide the ServiceRegistry class which anage information for all services 
+#   connected to the broker it is connected to.
+#
+# History:
+#
+# 24.11.2023 / V 0.1 / Nguyen Huynh Tri Cuong (RBVH/ECM51)
+# - Initialize
+#
+# *******************************************************************************
 from ServiceBase import ServiceBase, ResultType, ResponseMessage
 from ClewareAccessHelper import ClewareAccessHelper
 import time
 import pika
 import json
+import sys
 from signal import *
 
 
 class ServiceCleware(ServiceBase):
+   """
+Service for controlling Cleware devices.
+
+This class extends ServiceBase to provide functionalities specific to managing and controlling Cleware devices.
+   """
    _SERVICE_INFO = {
       'name': 'ServiceCleware',
       'group': 'Switch Boxes',
@@ -20,11 +55,35 @@ class ServiceCleware(ServiceBase):
       'methods': []
    }
 
-   def __init__(self, **conn_params):
-      super(ServiceCleware, self).__init__(**conn_params)
+   def __init__(self, cmd_args=None):
+      """
+Constructor for the ServiceCleware class.
+
+**Arguments:**
+
+* ``cmd_args``
+
+  / *Condition*: optional / *Type*: list / *Default*: [] /
+
+  Command-line arguments for initializing the ServiceCleware service.
+
+**Returns:**
+
+(*no returns*)
+      """
+      super(ServiceCleware, self).__init__(cmd_args)
       self.cleware_helper = ClewareAccessHelper()
 
    def svc_api_get_all_devices_state(self):
+      """
+Retrieve the state of all Cleware devices.
+
+**Returns:**
+
+  / *Type*: dict /
+
+  A dictionary containing the states of all Cleware devices.
+      """
       return self.cleware_helper.get_all_devices_state()
 
    def svc_api_set_switch(self, device_no, switch_id, state):
@@ -62,6 +121,13 @@ Set state for a Cleware device's switch.
       return ret
 
    def notify_updates(self):
+      """
+Notify updates to the realtime update channel for Cleware devices.
+
+**Returns:**
+
+(*no returns*)
+      """
       connection = pika.BlockingConnection(pika.ConnectionParameters(**self._kw_args))
       channel = connection.channel()
 
@@ -79,6 +145,33 @@ Set state for a Cleware device's switch.
 
 
 def signal_handler(sig, frame, obj):
+   """
+Handle signals from the operating system.
+
+**Arguments:**
+
+* ``sig``
+
+  / *Condition*: required / *Type*: int /
+
+  The signal number received from the OS.
+
+* ``frame``
+
+  / *Condition*: required / *Type*: frame object /
+
+  The current stack frame.
+
+* ``obj``
+
+  / *Condition*: required / *Type*: object /
+
+  The object that is handling the signal.
+
+**Returns:**
+
+(*no returns*)
+   """
    # This function will be called when a SIGINT signal (Ctrl+C) is received
    print("Ctrl+C pressed - Cleaning up...")
    # Perform any necessary cleanup here
@@ -89,7 +182,7 @@ def signal_handler(sig, frame, obj):
 
 
 if __name__ == '__main__':
-   svc = ServiceCleware(host='localhost')
+   svc = ServiceCleware(sys.argv[1:])
 
    # Register the signal handler for SIGINT (Ctrl+C)
    for sign in (SIGABRT, SIGILL, SIGINT, SIGSEGV, SIGTERM):
