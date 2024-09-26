@@ -186,6 +186,12 @@ if ( ('install' in listCmdArgs) or ('build' in listCmdArgs) or ('sdist' in listC
 print(COLBY + "Extended setup step 5/5: install.run(self)")
 print()
 
+#print("==========List of packages:")
+#print(find_packages(where=str(oRepositoryConfig.Get('PACKAGENAME'))))
+root_package = str(oRepositoryConfig.Get('PACKAGENAME'))
+#print([root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package)])
+#print("===========================")
+
 setuptools.setup(
     name         = str(oRepositoryConfig.Get('PACKAGENAME')),
     version      = str(oRepositoryConfig.Get('PACKAGEVERSION')),
@@ -195,7 +201,7 @@ setuptools.setup(
     long_description = long_description,
     long_description_content_type = str(oRepositoryConfig.Get('LONGDESCRIPTIONCONTENTTYPE')),
     url = str(oRepositoryConfig.Get('URL')),
-    packages = [str(oRepositoryConfig.Get('PACKAGENAME')),],
+    packages = [root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package)],
     classifiers = [
         str(oRepositoryConfig.Get('PROGRAMMINGLANGUAGE')),
         str(oRepositoryConfig.Get('LICENCE')),
@@ -209,6 +215,7 @@ setuptools.setup(
         'install': ExtendedInstallCommand,
     },
     install_requires = oRepositoryConfig.Get('INSTALLREQUIRES'),
+    include_package_data=True,
     package_data={f"{oRepositoryConfig.Get('PACKAGENAME')}" : oRepositoryConfig.Get('PACKAGEDATA')},
 )
 # --------------------------------------------------------------------------------------------------------------
