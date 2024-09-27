@@ -52,7 +52,8 @@ This class extends ServiceBase to provide functionalities specific to managing a
       'tag': '',
       'gui_support': True,
       # Other details
-      'methods': []
+      'methods': [],
+      'sample_path': 'resource/sample.robot'
    }
 
    def __init__(self, cmd_args=None):

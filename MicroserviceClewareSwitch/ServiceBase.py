@@ -124,7 +124,8 @@ class ServiceBase:
       'gui_support': False,
       # Other details
       'methods': [],
-      'methods_info': {}
+      'methods_info': {},
+      'sample_path': '',
    }
 
    _SERVICE_REQUEST_EXCHANGE = 'services_request'
@@ -571,6 +572,15 @@ Get the service version.
          os.remove(zip_file_path)
 
       return file_content
+
+   def svc_api_get_sample(self):
+      file_content = ''
+      sample_path = os.path.abspath(self._SERVICE_INFO['sample_path'])
+      if os.path.exists(sample_path):
+         with open(sample_path, 'r', encoding='utf-8') as file:
+            file_content = file.read()
+      return file_content
+
 
    def is_specific_request(self, request):
       """
