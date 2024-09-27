@@ -67,6 +67,7 @@
 import os, sys, platform, shlex, subprocess
 import setuptools
 from setuptools.command.install import install
+from setuptools import find_packages
 
 # prefer the repository local version of all additional libraries (instead of the installed version under site-packages)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "./additions")))
