@@ -183,41 +183,16 @@ if ( ('install' in listCmdArgs) or ('build' in listCmdArgs) or ('sdist' in listC
 # --------------------------------------------------------------------------------------------------------------
 
 # -- the 'setup' itself
+# NOTE: Metadata now comes from pyproject.toml
+# This minimal setup.py only runs custom build steps and delegates to pyproject.toml
 
-print(COLBY + "Extended setup step 5/5: install.run(self)")
+print(COLBY + "Extended setup step 5/5: Running setup with pyproject.toml configuration")
 print()
 
-#print("==========List of packages:")
-#print(find_packages(where=str(oRepositoryConfig.Get('PACKAGENAME'))))
-root_package = str(oRepositoryConfig.Get('PACKAGENAME'))
-#print([root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package)])
-#print("===========================")
-
 setuptools.setup(
-    name         = str(oRepositoryConfig.Get('PACKAGENAME')),
-    version      = str(oRepositoryConfig.Get('PACKAGEVERSION')),
-    author       = str(oRepositoryConfig.Get('AUTHOR')),
-    author_email = str(oRepositoryConfig.Get('AUTHOREMAIL')),
-    description  = str(oRepositoryConfig.Get('DESCRIPTION')),
-    long_description = long_description,
-    long_description_content_type = str(oRepositoryConfig.Get('LONGDESCRIPTIONCONTENTTYPE')),
-    url = str(oRepositoryConfig.Get('URL')),
-    packages = [root_package] + [f"{root_package}.{item}" for item in find_packages(where=root_package)],
-    classifiers = [
-        str(oRepositoryConfig.Get('PROGRAMMINGLANGUAGE')),
-        str(oRepositoryConfig.Get('LICENCE')),
-        str(oRepositoryConfig.Get('OPERATINGSYSTEM')),
-        str(oRepositoryConfig.Get('DEVELOPMENTSTATUS')),
-        str(oRepositoryConfig.Get('INTENDEDAUDIENCE')),
-        str(oRepositoryConfig.Get('TOPIC')),
-    ],
-    python_requires = str(oRepositoryConfig.Get('PYTHONREQUIRES')),
     cmdclass={
         'install': ExtendedInstallCommand,
     },
-    install_requires = oRepositoryConfig.Get('INSTALLREQUIRES'),
-    include_package_data=True,
-    package_data={f"{oRepositoryConfig.Get('PACKAGENAME')}" : oRepositoryConfig.Get('PACKAGEDATA')},
 )
 # --------------------------------------------------------------------------------------------------------------
 
