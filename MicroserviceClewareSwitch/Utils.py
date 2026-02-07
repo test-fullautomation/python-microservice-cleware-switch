@@ -16,8 +16,6 @@
 import inspect
 import threading
 import platform
-import json
-import collections
 from ctypes import *
 _LINUX_OS = "linux"
 _WINDOWS_OS = "windows"
@@ -231,49 +229,3 @@ class Job(threading.Thread):
          self.execute(*self.args, **self.kwargs)
 
 
-class ResultType:
-   """
-   Result Types.
-   """
-   PASS = "pass"
-   FAIL = "fail"
-   EXCEPT = "exception"
-
-   def __init__(self):
-      pass
-
-
-class ResponseMessage(object):
-   """
-   Response message class
-   """
-   def __init__(self, request="", result=ResultType.PASS, result_data=""):
-      self.request = request
-      self.result = result
-      self.result_data = result_data
-
-   def get_json(self):
-      """
-      Convert response message to json
-      Returns:
-         Response message in json format
-      """
-      return json.dumps(collections.OrderedDict(sorted(self.__dict__.items())))
-
-   def get_data(self):
-      """
-      Get string data result
-      Returns:
-         String result
-      """
-      return self.result_data
-
-   @staticmethod
-   def create_from_string(str):
-      res = None
-      try:
-         data = json.loads(str)
-         res = ResponseMessage(data['request'], data['result'], data['result_data'])
-      except Exception as ex:
-         pass
-      return res

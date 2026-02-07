@@ -5,7 +5,7 @@ import os
 import platform
 import inspect
 import configparser
-from Utils import Utils, Singleton
+from .Utils import Utils, Singleton
 _LINUX_OS = "linux"
 _WINDOWS_OS = "windows"
 sPlatform = platform.system().lower()
