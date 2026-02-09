@@ -21,9 +21,9 @@ import platform
 import json
 import time
 import ast
-from MicroserviceClewareSwitch.Utils import Utils
-from MicroserviceClewareSwitch.ClewareAccessHelperAbs import ClewareAccessHelperAbs
-from MicroserviceClewareSwitch.ServiceLogger import ServiceLogger
+from .Utils import Utils
+from .ClewareAccessHelperAbs import ClewareAccessHelperAbs
+from .ServiceLogger import ServiceLogger
 
 
 class ClewareAccessHelper(ClewareAccessHelperAbs):

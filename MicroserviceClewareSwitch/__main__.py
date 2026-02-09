@@ -24,7 +24,7 @@ import sys
 from signal import signal, SIGABRT, SIGILL, SIGINT, SIGSEGV, SIGTERM
 
 from MicroserviceBase import create_transport, create_registry
-from MicroserviceClewareSwitch.ServiceCleware import ServiceCleware
+from .ServiceCleware import ServiceCleware
 
 
 def main():
@@ -37,8 +37,21 @@ def main():
    for sig in (SIGABRT, SIGILL, SIGINT, SIGSEGV, SIGTERM):
       signal(sig, lambda s, f: signal_handler(s, f, service))
 
-   service.register_service()
-   service.serve()
+   try:
+      service.register_service()
+      service.serve()
+   except KeyboardInterrupt:
+      print(" [*] ServiceCleware interrupted.")
+   finally:
+      try:
+         service.unregister_service()
+      except Exception:
+         pass
+      try:
+         service.close()
+      except Exception:
+         pass
+      print(" [*] ServiceCleware stopped.")
 
 
 def signal_handler(sig, frame, obj):
