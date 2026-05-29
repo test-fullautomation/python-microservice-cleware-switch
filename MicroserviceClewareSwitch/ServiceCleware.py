@@ -13,13 +13,12 @@
 #  limitations under the License.
 # *******************************************************************************
 #
-# File: ServiceRegistry.py
+# File: ServiceCleware.py
 #
 # Initially created by Nguyen Huynh Tri Cuong (RBVH/ECM51) / Nov 2023
 #
 # Description:
-#   Provide the ServiceRegistry class which anage information for all services 
-#   connected to the broker it is connected to.
+#   Provide the ServiceCleware class which controls Cleware switch box devices.
 #
 # History:
 #
@@ -27,13 +26,10 @@
 # - Initialize
 #
 # *******************************************************************************
-from ServiceBase import ServiceBase, ResultType, ResponseMessage
-from ClewareAccessHelper import ClewareAccessHelper
+from MicroserviceBase import ServiceBase
+from .ClewareAccessHelper import ClewareAccessHelper
 import time
-import pika
 import json
-import sys
-from signal import *
 
 
 class ServiceCleware(ServiceBase):
@@ -56,23 +52,29 @@ This class extends ServiceBase to provide functionalities specific to managing a
       'sample_path': 'resource/sample.robot'
    }
 
-   def __init__(self, cmd_args=None):
+   def __init__(self, transport=None, registry=None):
       """
 Constructor for the ServiceCleware class.
 
 **Arguments:**
 
-* ``cmd_args``
+* ``transport``
 
-  / *Condition*: optional / *Type*: list / *Default*: [] /
+  / *Condition*: optional / *Type*: TransportPort /
 
-  Command-line arguments for initializing the ServiceCleware service.
+  A TransportPort implementation for message transport.
+
+* ``registry``
+
+  / *Condition*: optional / *Type*: ServiceRegistryPort /
+
+  A ServiceRegistryPort implementation for service registration.
 
 **Returns:**
 
 (*no returns*)
       """
-      super(ServiceCleware, self).__init__(cmd_args)
+      super().__init__(transport=transport, registry=registry)
       self.cleware_helper = ClewareAccessHelper()
 
    def svc_api_get_all_devices_state(self):
@@ -129,64 +131,15 @@ Notify updates to the realtime update channel for Cleware devices.
 
 (*no returns*)
       """
-      connection = pika.BlockingConnection(pika.ConnectionParameters(**self._kw_args))
-      channel = connection.channel()
-
-      # Declare an exchange (use 'topic' type for flexible routing)
       exchange_name = 'updates_sw_state'
-      channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
 
-      # Publish updates to the 'updates' topic
+      # Declare the fanout exchange via the transport's underlying connection
+      channel = self._transport.connection.channel()
+      channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
+      channel.close()
+
       time.sleep(0.05)
       update_info = json.dumps(self.cleware_helper.get_all_devices_state())
-      channel.basic_publish(exchange=exchange_name, routing_key='', body=update_info)
+      self._transport.publish(exchange=exchange_name, routing_key='', body=update_info)
 
       print("Sent to RabbitMQ update info :%s" % update_info)
-      connection.close()
-
-
-def signal_handler(sig, frame, obj):
-   """
-Handle signals from the operating system.
-
-**Arguments:**
-
-* ``sig``
-
-  / *Condition*: required / *Type*: int /
-
-  The signal number received from the OS.
-
-* ``frame``
-
-  / *Condition*: required / *Type*: frame object /
-
-  The current stack frame.
-
-* ``obj``
-
-  / *Condition*: required / *Type*: object /
-
-  The object that is handling the signal.
-
-**Returns:**
-
-(*no returns*)
-   """
-   # This function will be called when a SIGINT signal (Ctrl+C) is received
-   print("Ctrl+C pressed - Cleaning up...")
-   # Perform any necessary cleanup here
-   # For example, call the cleanup method of the object
-   del obj
-   # Exit the program
-   exit(0)
-
-
-if __name__ == '__main__':
-   svc = ServiceCleware(sys.argv[1:])
-
-   # Register the signal handler for SIGINT (Ctrl+C)
-   for sign in (SIGABRT, SIGILL, SIGINT, SIGSEGV, SIGTERM):
-      signal(sign, lambda sig, frame: signal_handler(sig, frame, svc))
-
-   svc.serve()

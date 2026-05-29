@@ -17,9 +17,9 @@ import time
 import os
 import inspect
 from ctypes import *
-from ClewareAccessHelperAbs import ClewareAccessHelperAbs
-from Utils import Utils
-from ServiceLogger import ServiceLogger
+from .ClewareAccessHelperAbs import ClewareAccessHelperAbs
+from .Utils import Utils
+from .ServiceLogger import ServiceLogger
 
 
 class ClewareAccessHelperLinux(ClewareAccessHelperAbs):

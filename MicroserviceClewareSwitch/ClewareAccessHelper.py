@@ -15,14 +15,15 @@
 # *******************************************************************************
 import pkgutil
 import os
+import sys
 import importlib
 import platform
 import json
 import time
 import ast
-from Utils import Utils
-from ClewareAccessHelperAbs import ClewareAccessHelperAbs
-from ServiceLogger import ServiceLogger
+from .Utils import Utils
+from .ClewareAccessHelperAbs import ClewareAccessHelperAbs
+from .ServiceLogger import ServiceLogger
 
 
 class ClewareAccessHelper(ClewareAccessHelperAbs):
@@ -40,18 +41,21 @@ class ClewareAccessHelper(ClewareAccessHelperAbs):
    __ON_OFF = {'on': 1,
                'off': 0}
 
+   LIBRARY_EXTENSION_PREFIX = 'ClewareAccessHelper'
+
    def __init__(self):
       """
-      Get all supported USB Backend classes and set the real_obj to the instance of the class match with config file
+Get all supported USB Backend classes and set the real_obj to the instance of the class match with config file
       """
       dir_path = os.path.dirname(os.path.realpath(__file__))
-      current_name = os.path.splitext(os.path.basename(__file__))[0]
-      for module_loader, name, ispkg in pkgutil.iter_modules([dir_path]):
-         if current_name != name:
-            try:
-               importlib.import_module(name)
-            except:
-               pass
+      # current_name = os.path.splitext(os.path.basename(__file__))[0]
+      # for module_loader, name, ispkg in pkgutil.iter_modules([dir_path]):
+      #    if current_name != name:
+      #       try:
+      #          importlib.import_module(name)
+      #       except Exception as _ex:
+      #          pass
+      ClewareAccessHelper.import_modules_from_paths([dir_path])
 
       supported_usb_access_classes_list = Utils.get_all_descendant_classes(ClewareAccessHelperAbs)
       supported_usb_access_classes_dict = {cls._sPlatform: cls for cls in supported_usb_access_classes_list}
@@ -65,6 +69,49 @@ class ClewareAccessHelper(ClewareAccessHelperAbs):
 
       self._dict_config_port = {}
       # self.load_config()
+
+   @staticmethod
+   def import_modules_from_paths(paths):
+      """
+Import all modules from given paths.
+
+**Arguments:**
+
+* ``paths``
+
+  / *Condition*: required / *Type*: list /
+
+  List of paths to import modules from.
+      """
+      for path in paths:
+        if os.path.isdir(path):
+           for root, dirs, files in os.walk(path):
+              for file in files:
+                 if file.endswith('.py'):
+                    module_path = os.path.join(root, file)
+                    module_name = os.path.splitext(os.path.relpath(module_path, os.path.dirname(path)))[
+                       0].replace(
+                       os.sep, '.')
+                    if module_name not in sys.modules:
+                       spec = importlib.util.spec_from_file_location(module_name, module_path)
+                       if spec and spec.loader:
+                          module = importlib.util.module_from_spec(spec)
+                          sys.modules[module_name] = module
+                          try:
+                             spec.loader.exec_module(module)
+                          except Exception as _ex:
+                             pass
+        elif os.path.isfile(path) and path.endswith('.py'):
+           module_name = os.path.splitext(os.path.basename(path))[0]
+           if module_name not in sys.modules:
+              spec = importlib.util.spec_from_file_location(module_name, path)
+              if spec and spec.loader:
+                 module = importlib.util.module_from_spec(spec)
+                 sys.modules[module_name] = module
+                 try:
+                    spec.loader.exec_module(module)
+                 except Exception as _ex:
+                    pass
 
    def load_config(self):
       """
